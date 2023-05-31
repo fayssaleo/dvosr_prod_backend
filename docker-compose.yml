@@ -1,0 +1,80 @@
+version: "3.7"
+
+services:
+  # PHP-FPM - Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    working_dir: /var/www
+    depends_on:
+      - db
+    volumes:
+      - ./:/var/www
+      - ./docker-files/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+
+    networks:
+      - app-network
+
+  # NGINX - Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+
+    ports:
+      - "8100:80"
+      - "8143:443"
+
+    volumes:
+      - ./:/var/www
+      - ./docker-files/nginx/conf.d/:/etc/nginx/conf.d/
+
+    networks:
+      - app-network
+
+  # MariaDB - Service
+  db:
+    image: mysql:5.7
+    container_name: db
+    restart: unless-stopped
+    tty: true
+
+    ports:
+      - "3309:3306"
+
+    environment:
+      MYSQL_DATABASE: 'dvosr'
+      MYSQL_ROOT_PASSWORD: 'dvosr'
+      MYSQL_PASSWORD: 'dvosr'
+      MYSQL_USER: 'dvosr'
+    volumes:
+      - ./docker-files/mysql:/var/lib/mysql
+    networks:
+      - app-network
+
+  phpmyadmin:
+    container_name: phpmyadmin
+    depends_on:
+      - db
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    ports:
+      - "8084:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+    networks:
+      - app-network
+
+# Networks
+networks:
+  app-network:
+    driver: bridge
